@@ -1,16 +1,19 @@
 # Politics in 60
 
-A daily 30–60 second South African political briefing for 16–35 year-olds,
-auto-generated every day at **17:00 SAST** and published to a hosted page.
+A 30–60 second South African political briefing for 16–35 year-olds. A
+GitHub Action checks for genuinely new political news **every 30 minutes**;
+if something real has changed, it publishes a new story. If nothing new
+happened, the last story just stays up — no filler, no fake "new" content.
 
-- `scripts/generate_script.py` — calls the Claude API (with the web_search
-  tool switched on) to research today's news from a fixed list of credible
-  SA sources and write today's script as JSON.
-- `.github/workflows/daily-script.yml` — GitHub Action that runs the script
-  daily and commits the result.
+- `scripts/generate_script.py` — every run, loads the previous story, calls
+  the Claude API (web_search on) to check current SA political news from a
+  fixed list of credible sources, and asks it to judge whether there's a
+  genuinely new/updated story. Only writes a new file if there is one.
+- `.github/workflows/daily-script.yml` — GitHub Action that runs the check
+  every 30 minutes and commits only when a new story was actually written.
 - `docs/` — the static hosted page (GitHub Pages serves this folder). It reads
-  `docs/data/latest.json` and `docs/data/archive/` — no rebuild needed, it's
-  plain fetch() calls against JSON files.
+  `docs/data/latest.json` and lists every past story from `docs/data/archive/`
+  — no rebuild needed, it's plain fetch() calls against JSON files.
 
 ## One-time setup (about 10 minutes)
 
@@ -39,9 +42,22 @@ auto-generated every day at **17:00 SAST** and published to a hosted page.
    Repo → Actions tab → "Generate daily politics script" → Run workflow →
    Run workflow. After it finishes (~30–60 seconds), refresh your Pages URL.
 
-That's it — from tomorrow, it runs itself every day at 17:00 SAST
-(15:00 UTC, set in the workflow's cron schedule) with zero further action
-from you.
+That's it — from now on it checks every 30 minutes and only publishes when
+something genuinely new happened, with zero further action from you.
+
+A few things worth knowing about the 30-minute schedule:
+
+- **GitHub doesn't guarantee exact timing.** Scheduled runs can slip by a
+  few minutes (more, if GitHub's infrastructure is under load) — treat
+  "every 30 min" as "roughly every 30 min," not a hard real-time guarantee.
+- **GitHub auto-disables schedules after 60 days of zero commits to the
+  repo.** Since this workflow only commits when there's real news, a very
+  quiet 2-month stretch could pause it. If you notice it's stopped, just
+  push any small commit (or re-run manually from the Actions tab) to wake
+  it back up.
+- **Cost scales with frequency.** 48 checks a day instead of 1 means ~48x
+  the API calls — still cheap per call, but keep an occasional eye on
+  Settings → Billing → Usage in the Anthropic console.
 
 ## Adjusting the sourcing rules or tone
 

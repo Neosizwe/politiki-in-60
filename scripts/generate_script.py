@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 """
-Generates the daily "Politics in 60" script for South African youth (16-35).
+Generates the "Politics in 60" script for South African youth (16-35).
 
-Runs via GitHub Actions every day at 17:00 SAST (15:00 UTC).
-Calls the Claude API with the web_search tool so every fact is sourced
-live rather than from the model's training data, writes the result to
-docs/data/latest.json, archives it under docs/data/archive/, and updates
-docs/data/archive-index.json so the hosted page can list past scripts.
+Runs via GitHub Actions every 30 minutes. Each run:
+  1. Loads the previous story (if any) for context.
+  2. Calls the Claude API with the web_search tool so every fact is sourced
+     live, and asks the model to decide whether there is a genuinely NEW
+     political development since the previous story.
+  3. If yes: writes a new timestamped story, updates latest.json and the
+     archive index.
+  4. If no: does nothing, and the workflow's git step finds no diff, so
+     nothing is committed and the site keeps showing the last real story.
 
 Requires env var: ANTHROPIC_API_KEY
 """
@@ -31,15 +35,15 @@ APPROVED_SOURCES = [
 ]
 
 SYSTEM_PROMPT = f"""You are a research + scriptwriting assistant for a young South African
-political commentator whose audience is 16-35 year olds. Produce ONE daily short-form
-video script (spoken length 30-60 seconds, ~90-150 words) covering the most relevant
-current South African political story, event, or piece of legislation/by-law for that
-audience.
+political commentator whose audience is 16-35 year olds. You are called every 30 minutes.
+Your job each time is to check for a genuinely NEW or meaningfully UPDATED South African
+political story, event, or piece of legislation/by-law since the previous story you were
+told about, and if one exists, write a short-form video script for it (spoken length
+30-60 seconds, ~90-150 words).
 
 HARD RULES:
-1. Every factual claim MUST be verifiable in today's web search results. Do not use
-   prior knowledge for facts, dates, names, or figures. If you are not sure, search again
-   or leave it out.
+1. Every factual claim MUST be verifiable in this run's web search results. Do not use
+   prior knowledge for facts, dates, names, or figures.
 2. Only cite these source domains (or their direct reporting): {", ".join(APPROVED_SOURCES)}.
    Do not use unnamed blogs, aggregators without bylines, or social media posts as sources.
 3. Tone: energetic, plain-spoken, informative, never inflammatory. Explain WHY it matters
@@ -47,25 +51,55 @@ HARD RULES:
 4. Stay factually neutral on contested party politics: report what happened and its
    real-world implications/advantages/disadvantages; do not editorialize about which
    party is right.
-5. Output STRICT JSON ONLY, no markdown fences, no commentary, matching this schema:
-{{
-  "date": "YYYY-MM-DD",
-  "headline": "short punchy headline, under 10 words",
-  "script": "the full spoken script, 90-150 words",
-  "estimated_seconds": integer,
-  "why_it_matters": "one sentence, youth-framed",
-  "sources": [{{"title": "...", "url": "...", "publisher": "..."}}]
-}}
+5. Do NOT manufacture a "new" story just to have one. Minor rewording of the same news,
+   or routine/no news, is NOT new. Only flag something new if a reasonable person would
+   agree it's a distinct development (a bill passing a new stage, a new ruling, a new
+   scandal, a new poll, a new policy announcement, etc).
+6. Output STRICT JSON ONLY, no markdown fences, no commentary, matching exactly one of
+   these two shapes:
+
+   If there IS a new/updated story:
+   {{
+     "is_new": true,
+     "headline": "short punchy headline, under 10 words",
+     "script": "the full spoken script, 90-150 words",
+     "estimated_seconds": integer,
+     "why_it_matters": "one sentence, youth-framed",
+     "sources": [{{"title": "...", "url": "...", "publisher": "..."}}]
+   }}
+
+   If there is NOT a new/updated story since the previous one:
+   {{
+     "is_new": false
+   }}
 """
 
 
-def call_claude():
+def load_previous():
+    base = os.path.join(os.path.dirname(__file__), "..", "docs", "data")
+    latest_path = os.path.join(os.path.abspath(base), "latest.json")
+    if not os.path.exists(latest_path):
+        return None
+    with open(latest_path) as f:
+        return json.load(f)
+
+
+def call_claude(previous):
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         print("ERROR: ANTHROPIC_API_KEY not set", file=sys.stderr)
         sys.exit(1)
 
-    today_sast = datetime.now(SAST).strftime("%Y-%m-%d")
+    now_sast = datetime.now(SAST)
+
+    if previous:
+        prev_context = (
+            f"PREVIOUS STORY (published {previous.get('published_at_sast', previous.get('date',''))}):\n"
+            f"Headline: {previous.get('headline','')}\n"
+            f"Script: {previous.get('script','')}\n"
+        )
+    else:
+        prev_context = "PREVIOUS STORY: none — this is the first run, so any relevant current story counts as new.\n"
 
     resp = requests.post(
         API_URL,
@@ -82,9 +116,11 @@ def call_claude():
                 {
                     "role": "user",
                     "content": (
-                        f"Today's date is {today_sast} (South Africa). "
-                        "Search for the most relevant, credible South African political "
-                        "news from today, and write today's script per your instructions."
+                        f"Current date/time: {now_sast.strftime('%Y-%m-%d %H:%M')} SAST.\n\n"
+                        f"{prev_context}\n"
+                        "Search for current South African political news and decide, per your "
+                        "instructions, whether there is a genuinely new/updated story since the "
+                        "previous one. Respond with the correct JSON shape."
                     ),
                 }
             ],
@@ -95,12 +131,9 @@ def call_claude():
     resp.raise_for_status()
     data = resp.json()
 
-    # Concatenate all text blocks (search results produce interleaved tool blocks)
     text = "".join(
         block.get("text", "") for block in data.get("content", []) if block.get("type") == "text"
     )
-
-    # Strip accidental code fences and grab the JSON object
     text = text.strip()
     match = re.search(r"\{.*\}", text, re.DOTALL)
     if not match:
@@ -108,25 +141,29 @@ def call_claude():
         sys.exit(1)
 
     payload = json.loads(match.group(0))
-    payload.setdefault("date", today_sast)
-    payload["generated_at_utc"] = datetime.now(timezone.utc).isoformat()
+    payload["_now_sast"] = now_sast
     return payload
 
 
 def write_outputs(payload):
+    now_sast = payload.pop("_now_sast")
+    payload["published_at_sast"] = now_sast.strftime("%Y-%m-%d %H:%M")
+    payload["generated_at_utc"] = datetime.now(timezone.utc).isoformat()
+
+    story_id = now_sast.strftime("%Y%m%d-%H%M")
+
     base = os.path.join(os.path.dirname(__file__), "..", "docs", "data")
     base = os.path.abspath(base)
     os.makedirs(os.path.join(base, "archive"), exist_ok=True)
 
     latest_path = os.path.join(base, "latest.json")
-    archive_path = os.path.join(base, "archive", f"{payload['date']}.json")
+    archive_path = os.path.join(base, "archive", f"{story_id}.json")
 
     with open(latest_path, "w") as f:
         json.dump(payload, f, indent=2)
     with open(archive_path, "w") as f:
         json.dump(payload, f, indent=2)
 
-    # Update archive index
     index_path = os.path.join(base, "archive-index.json")
     if os.path.exists(index_path):
         with open(index_path) as f:
@@ -134,17 +171,27 @@ def write_outputs(payload):
     else:
         index = []
 
-    entry = {"date": payload["date"], "headline": payload.get("headline", "")}
-    index = [e for e in index if e["date"] != payload["date"]]  # dedupe
+    entry = {
+        "id": story_id,
+        "published_at_sast": payload["published_at_sast"],
+        "headline": payload.get("headline", ""),
+    }
+    index = [e for e in index if e["id"] != story_id]  # dedupe
     index.append(entry)
-    index.sort(key=lambda e: e["date"], reverse=True)
+    index.sort(key=lambda e: e["id"], reverse=True)
 
     with open(index_path, "w") as f:
         json.dump(index, f, indent=2)
 
-    print(f"Wrote {latest_path} and {archive_path}")
+    print(f"New story written: {story_id} — {payload.get('headline','')}")
 
 
 if __name__ == "__main__":
-    result = call_claude()
-    write_outputs(result)
+    previous_story = load_previous()
+    result = call_claude(previous_story)
+
+    if result.get("is_new"):
+        del result["is_new"]
+        write_outputs(result)
+    else:
+        print("No new story this run — leaving latest.json untouched.")

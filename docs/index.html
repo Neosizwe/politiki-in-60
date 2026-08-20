@@ -133,24 +133,24 @@
 <body>
 
   <div class="ticker">
-    <span><span class="live-dot"></span>South Africa · Daily 17:00 SAST</span>
+    <span><span class="live-dot"></span>South Africa · Checked every 30 min</span>
     <span id="ticker-date">—</span>
   </div>
 
   <div class="wrap">
     <div class="masthead">
       <h1 class="wordmark">Politics<br/>in <span>60</span>.</h1>
-      <p class="sub">One credible, youth-framed political briefing a day. 30–60 seconds. Sourced, not spun.</p>
+      <p class="sub">A credible, youth-framed political briefing. Updates whenever real news breaks — otherwise the last story stands. 30–60 seconds. Sourced, not spun.</p>
     </div>
 
     <div id="today" class="card">
-      <div class="state-msg">Loading today's briefing…</div>
+      <div class="state-msg">Loading the latest story…</div>
     </div>
 
     <div class="archive">
-      <div class="archive-label">Archive</div>
+      <div class="archive-label">Past stories</div>
       <div id="archive-list" class="archive-list">
-        <div class="state-msg">Loading archive…</div>
+        <div class="state-msg">Loading past stories…</div>
       </div>
     </div>
 
@@ -172,7 +172,7 @@ function renderToday(data){
 
   el.innerHTML = `
     <div class="card-top">
-      <span class="date-label">${data.date}</span>
+      <span class="date-label">${data.published_at_sast || data.date || ''} SAST</span>
       <span class="timer-badge">~${data.estimated_seconds || 45}s read</span>
     </div>
     <h1 class="headline">${data.headline || ''}</h1>
@@ -183,7 +183,7 @@ function renderToday(data){
       <ul>${sources || '<li class="pub">No sources listed</li>'}</ul>
     </div>
   `;
-  document.getElementById('ticker-date').textContent = data.date;
+  document.getElementById('ticker-date').textContent = data.published_at_sast || data.date || '';
 }
 
 async function renderArchive(){
@@ -191,24 +191,24 @@ async function renderArchive(){
   try{
     const index = await loadJSON('data/archive-index.json');
     if(!index.length){
-      listEl.innerHTML = '<div class="state-msg">No past scripts yet.</div>';
+      listEl.innerHTML = '<div class="state-msg">No past stories yet.</div>';
       return;
     }
     listEl.innerHTML = index.map(item =>
-      `<button class="archive-item" data-date="${item.date}">
-        <span>${item.headline}</span><span class="d">${item.date}</span>
+      `<button class="archive-item" data-id="${item.id}">
+        <span>${item.headline}</span><span class="d">${item.published_at_sast || ''}</span>
       </button>`
     ).join('');
     listEl.querySelectorAll('.archive-item').forEach(btn=>{
       btn.addEventListener('click', async ()=>{
-        const d = btn.getAttribute('data-date');
-        const data = await loadJSON(`data/archive/${d}.json`);
+        const id = btn.getAttribute('data-id');
+        const data = await loadJSON(`data/archive/${id}.json`);
         renderToday(data);
         window.scrollTo({top:0, behavior:'smooth'});
       });
     });
   } catch(e){
-    listEl.innerHTML = '<div class="state-msg">Archive not available yet.</div>';
+    listEl.innerHTML = '<div class="state-msg">Past stories not available yet.</div>';
   }
 }
 
