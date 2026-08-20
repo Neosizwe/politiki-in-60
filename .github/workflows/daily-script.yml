@@ -1,0 +1,42 @@
+name: Generate politics script
+
+on:
+  schedule:
+    # Every 30 minutes. GitHub Actions doesn't guarantee exact timing under load
+    # (it can slip a few minutes), and disables schedules after 60 days with zero
+    # commits to the repo — push any small commit to reset that clock if needed.
+    - cron: "*/30 * * * *"
+  workflow_dispatch: {}  # lets you trigger it manually from the Actions tab to test
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Check for a new story and generate it if found
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python scripts/generate_script.py
+
+      - name: Commit and push (only if a new story was written)
+        run: |
+          git config user.name "politics-60-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add docs/data
+          if git diff --cached --quiet; then
+            echo "No changes — nothing to commit."
+          else
+            git commit -m "New story: $(date -u +%Y-%m-%dT%H:%M)Z"
+            git push
+          fi
