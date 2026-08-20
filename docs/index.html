@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en-ZA">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Politics in 60 — Daily SA Politics for Young South Africans</title>
+<meta name="description" content="A 30-60 second daily political briefing for South Africans aged 16-35, sourced only from credible outlets." />
+<style>
+  :root{
+    --ink:#12181B;
+    --paper:#F4F1E9;
+    --spring:#2FB170;
+    --amber:#F2A93B;
+    --line: rgba(244,241,233,0.14);
+    --mono: 'IBM Plex Mono', 'Courier New', monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--ink);
+    color:var(--paper);
+    font-family: -apple-system, 'Inter', 'Helvetica Neue', Arial, sans-serif;
+    min-height:100vh;
+  }
+  .wrap{max-width:640px;margin:0 auto;padding:0 20px 80px;}
+
+  /* Ticker bar */
+  .ticker{
+    border-bottom:1px solid var(--line);
+    padding:14px 20px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    font-family:var(--mono);
+    font-size:12px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:rgba(244,241,233,0.65);
+  }
+  .live-dot{
+    display:inline-block;width:7px;height:7px;border-radius:50%;
+    background:var(--spring);margin-right:8px;
+    animation:pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes pulse{
+    0%,100%{opacity:1;} 50%{opacity:0.25;}
+  }
+  @media (prefers-reduced-motion: reduce){ .live-dot{animation:none;} }
+
+  /* Masthead */
+  .masthead{padding:36px 0 20px;}
+  .wordmark{
+    font-size:clamp(38px,9vw,58px);
+    font-weight:800;
+    letter-spacing:-0.02em;
+    line-height:0.95;
+    margin:0;
+  }
+  .wordmark span{color:var(--spring);}
+  .sub{
+    margin-top:10px;
+    font-size:15px;
+    color:rgba(244,241,233,0.6);
+    max-width:46ch;
+  }
+
+  /* Today card */
+  .card{
+    margin-top:28px;
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:26px;
+    background:linear-gradient(180deg, rgba(47,177,112,0.06), rgba(47,177,112,0));
+  }
+  .card-top{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+  .date-label{font-family:var(--mono);font-size:12px;color:var(--amber);letter-spacing:0.08em;text-transform:uppercase;}
+  .timer-badge{
+    font-family:var(--mono);font-size:12px;
+    border:1px solid var(--line);border-radius:999px;
+    padding:4px 10px;color:rgba(244,241,233,0.7);
+  }
+  h1.headline{
+    font-size:clamp(22px,5vw,30px);
+    line-height:1.15;
+    margin:16px 0 18px;
+    font-weight:700;
+  }
+  .script-body{
+    font-size:17px;
+    line-height:1.65;
+    color:rgba(244,241,233,0.92);
+    white-space:pre-wrap;
+  }
+  .why{
+    margin-top:20px;
+    padding:14px 16px;
+    border-left:3px solid var(--amber);
+    background:rgba(242,169,59,0.08);
+    font-size:14.5px;
+    color:rgba(244,241,233,0.85);
+  }
+  .why b{color:var(--amber);}
+
+  /* Sources */
+  .sources{margin-top:22px;}
+  .sources-label{font-family:var(--mono);font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:rgba(244,241,233,0.45);margin-bottom:8px;}
+  .sources ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;}
+  .sources a{
+    color:var(--paper);text-decoration:none;font-size:13.5px;
+    border-bottom:1px solid var(--line);
+    display:inline-block;padding-bottom:1px;
+  }
+  .sources a:hover{border-color:var(--spring);color:var(--spring);}
+  .sources .pub{color:rgba(244,241,233,0.45);font-family:var(--mono);font-size:11px;margin-left:6px;}
+
+  /* Archive */
+  .archive{margin-top:44px;}
+  .archive-label{font-family:var(--mono);font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:rgba(244,241,233,0.5);margin-bottom:12px;}
+  .archive-list{display:flex;flex-direction:column;border-top:1px solid var(--line);}
+  .archive-item{
+    display:flex;justify-content:space-between;gap:12px;
+    padding:13px 0;border-bottom:1px solid var(--line);
+    cursor:pointer;background:none;border-left:none;border-right:none;border-top:none;
+    color:var(--paper);text-align:left;font-size:14px;width:100%;font-family:inherit;
+  }
+  .archive-item:hover{color:var(--spring);}
+  .archive-item .d{font-family:var(--mono);color:rgba(244,241,233,0.45);font-size:12px;}
+
+  .state-msg{color:rgba(244,241,233,0.5);font-size:14px;padding:40px 0;text-align:center;}
+  .footer{margin-top:50px;font-size:12px;color:rgba(244,241,233,0.35);text-align:center;}
+</style>
+</head>
+<body>
+
+  <div class="ticker">
+    <span><span class="live-dot"></span>South Africa · Daily 17:00 SAST</span>
+    <span id="ticker-date">—</span>
+  </div>
+
+  <div class="wrap">
+    <div class="masthead">
+      <h1 class="wordmark">Politics<br/>in <span>60</span>.</h1>
+      <p class="sub">One credible, youth-framed political briefing a day. 30–60 seconds. Sourced, not spun.</p>
+    </div>
+
+    <div id="today" class="card">
+      <div class="state-msg">Loading today's briefing…</div>
+    </div>
+
+    <div class="archive">
+      <div class="archive-label">Archive</div>
+      <div id="archive-list" class="archive-list">
+        <div class="state-msg">Loading archive…</div>
+      </div>
+    </div>
+
+    <div class="footer">Generated daily from public reporting by SAnews, Parliament of SA, the IEC, and major SA news outlets. Not affiliated with any political party.</div>
+  </div>
+
+<script>
+async function loadJSON(path){
+  const res = await fetch(path, {cache: "no-store"});
+  if(!res.ok) throw new Error("Failed to load " + path);
+  return res.json();
+}
+
+function renderToday(data){
+  const el = document.getElementById('today');
+  const sources = (data.sources || []).map(s =>
+    `<li><a href="${s.url}" target="_blank" rel="noopener">${s.title}</a><span class="pub">${s.publisher || ''}</span></li>`
+  ).join('');
+
+  el.innerHTML = `
+    <div class="card-top">
+      <span class="date-label">${data.date}</span>
+      <span class="timer-badge">~${data.estimated_seconds || 45}s read</span>
+    </div>
+    <h1 class="headline">${data.headline || ''}</h1>
+    <div class="script-body">${data.script || ''}</div>
+    ${data.why_it_matters ? `<div class="why"><b>Why it matters:</b> ${data.why_it_matters}</div>` : ''}
+    <div class="sources">
+      <div class="sources-label">Sources</div>
+      <ul>${sources || '<li class="pub">No sources listed</li>'}</ul>
+    </div>
+  `;
+  document.getElementById('ticker-date').textContent = data.date;
+}
+
+async function renderArchive(){
+  const listEl = document.getElementById('archive-list');
+  try{
+    const index = await loadJSON('data/archive-index.json');
+    if(!index.length){
+      listEl.innerHTML = '<div class="state-msg">No past scripts yet.</div>';
+      return;
+    }
+    listEl.innerHTML = index.map(item =>
+      `<button class="archive-item" data-date="${item.date}">
+        <span>${item.headline}</span><span class="d">${item.date}</span>
+      </button>`
+    ).join('');
+    listEl.querySelectorAll('.archive-item').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const d = btn.getAttribute('data-date');
+        const data = await loadJSON(`data/archive/${d}.json`);
+        renderToday(data);
+        window.scrollTo({top:0, behavior:'smooth'});
+      });
+    });
+  } catch(e){
+    listEl.innerHTML = '<div class="state-msg">Archive not available yet.</div>';
+  }
+}
+
+async function init(){
+  try{
+    const data = await loadJSON('data/latest.json');
+    renderToday(data);
+  } catch(e){
+    document.getElementById('today').innerHTML = '<div class="state-msg">Today\'s briefing hasn\'t been generated yet. Check back after 17:00 SAST.</div>';
+  }
+  renderArchive();
+}
+init();
+</script>
+</body>
+</html>
